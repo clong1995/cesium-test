@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8">
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <title>Hello World!</title>
+    <script src="../Cesium/Cesium.js"></script>
+    <style>
+        @import url(../Cesium/Widgets/widgets.css);
+
+        html, body, #cesiumContainer {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<div id="cesiumContainer"></div>
+<script>
+    var viewer = new Cesium.Viewer('cesiumContainer');
+
+    var penumbraSunlightPolygon = viewer.entities.add({
+        name: 'sunlight/penumbra polygon',
+        polygon: {
+            hierarchy: Cesium.Cartesian3.fromDegreesArray([
+                0, 0,
+                1, 0,
+                1, 1,
+                0, 1
+            ]),
+            fill: false,
+            outline: true,
+            outlineWidth: 2,
+            outlineColor: Cesium.Color.YELLOW,
+            show: true
+        }
+    });
+    var penumbraUmbraPolygon = viewer.entities.add({
+        name: 'umbra/penumbra polygon',
+        polygon: {
+            hierarchy: Cesium.Cartesian3.fromDegreesArray([
+                0, 0,
+                1, 0,
+                1, 1,
+                0, 1
+            ]),
+            material: Cesium.Color.BLACK.withAlpha(.5),
+            fill: true,
+            outline: true,
+            outlineWidth: 2,
+            outlineColor: Cesium.Color.BLUE,
+            show: true
+        }
+    });
+    var penumbraVertexCount = 6;
+    var penumbraVertexRotation = 2*Cesium.Math.PI / penumbraVertexCount;
+    var simUpdateStep = 1; //update time step in seconds; will be scaled by clock multiplier
+    var sunRadius = 696.3; //mean radius in 10^6 meters
+    var earthRadius = 6.372797560856; //mean radius in 10^6 meters
+    var lastUpdateTime = new Cesium.JulianDate(0,0);
+
+    console.log(lastUpdateTime);
+
+    function updatePenumbraLines(clock) {
+
+
+        console.log(clock);
+
+        //updating too often brings cesium to a halt
+        if(Cesium.JulianDate.equalsEpsilon(lastUpdateTime, clock.currentTime, Math.abs(clock.multiplier)*simUpdateStep)) {return;}
+        //sun position
+        var spwc = viewer.scene.context.uniformState.sunPositionWC;
+        var D = Cesium.Cartesian3.magnitude(spwc)/1000000.0; //distance from earth to sun in 10^6 meters
+        if(D) {//prevent NaN errors
+            lastUpdateTime = clock.currentTime;
+            var sv = Cesium.Cartesian3.normalize(spwc, new Cesium.Cartesian3());
+            //vertex rotation
+            var q = Cesium.Quaternion.fromAxisAngle(sv, penumbraVertexRotation);
+            var R = Cesium.Matrix3.fromQuaternion(q);
+            //sunlight line
+            var angle = Math.acos((sunRadius+earthRadius)/D); //sunlight cone inner half-angle
+            var v = new Cesium.Cartesian3(0,0,1);
+            Cesium.Cartesian3.cross(sv, v, v); //get vector orthogonal to sv
+            var qs = Cesium.Quaternion.fromAxisAngle(v, angle);
+            var Rs = Cesium.Matrix3.fromQuaternion(qs);
+            Cesium.Matrix3.multiplyByVector(Rs, sv, v);
+            var pos = [];
+            var w;
+            for (var i=0; i<penumbraVertexCount; ++i){
+                Cesium.Matrix3.multiplyByVector(R, v, v);
+                w = Cesium.Cartesian3.clone(v);
+                viewer.scene.globe.ellipsoid.scaleToGeocentricSurface(w, w);
+                pos.push(w);
+            }
+
+            //console.log(pos)
+
+            penumbraSunlightPolygon.polygon.hierarchy = new Cesium.PolygonHierarchy(pos);
+            //umbra line
+            Cesium.Cartesian3.negate(sv, sv); //umbra cone points away from sun
+            angle = Math.acos((sunRadius-earthRadius)/D); //umbra cone inner half-angle
+            v = new Cesium.Cartesian3(0,0,1);
+            Cesium.Cartesian3.cross(sv, v, v); //get vector orthogonal to sv
+            var qu = Cesium.Quaternion.fromAxisAngle(v, angle);
+            var Ru = Cesium.Matrix3.fromQuaternion(qu);
+            Cesium.Matrix3.multiplyByVector(Ru, sv, v);
+            pos = [];
+            for (i=0; i<penumbraVertexCount; ++i){
+                Cesium.Matrix3.multiplyByVector(R, v, v);
+                w = Cesium.Cartesian3.clone(v);
+                viewer.scene.globe.ellipsoid.scaleToGeocentricSurface(w, w);
+                pos.push(w);
+            }
+            penumbraUmbraPolygon.polygon.hierarchy = new Cesium.PolygonHierarchy(pos);
+        }
+    }
+
+    //add the event handler
+    viewer.clock.onTick.addEventListener(updatePenumbraLines);
+
+
+</script>
+</body>
+</html>

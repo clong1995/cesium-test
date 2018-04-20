@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Use correct character set. -->
+    <meta charset="utf-8">
+    <!-- Tell IE to use the latest, best version. -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <title>Hello World!</title>
+    <script src="../Cesium/Cesium.js"></script>
+    <style>
+        @import url(../Cesium/Widgets/widgets.css);
+
+        html, body, #cesiumContainer {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+<div id="cesiumContainer"></div>
+<script>
+    var point = {
+       lon: -59.182153710050564,
+       lat: 10.635185528125536
+   };
+   var radius =  9000 * 1000;
+
+   var viewer = new Cesium.Viewer('cesiumContainer', {
+       animation: false,
+       baseLayerPicker: false,
+       fullscreenButton: false,
+       geocoder: false,
+       homeButton: false,
+       infoBox: false,
+       //sceneModePicker: false,
+       timeline: false,
+       //scene3DOnly: true,
+       sceneMode: Cesium.SceneMode.SCENE2D,
+       navigationHelpButton: false,
+       navigationInstructionsInitiallyVisible: false,
+       creditContainer: document.createElement("div")//去掉cesium的logo
+   });
+
+   var lon = point.lon + 90 > 180 ? point.lon -90 : point.lon;
+
+   var black = viewer.entities.add({
+       position: Cesium.Cartesian3.fromDegrees(lon, point.lat/*,*/),//相机位置
+       name: 'Green circle at height with outline',
+       ellipse: {
+           semiMinorAxis: radius,
+           semiMajorAxis: radius,
+           height: 10000.0,
+           material: Cesium.Color.BLACK.withAlpha(.4)
+       }
+   });
+   viewer.zoomTo(black);
+</script>
+</body>
+</html>
